@@ -1,0 +1,74 @@
+import chess.engine
+import chess.pgn
+import io
+import os
+from datetime import datetime
+
+def print_board(board):
+    print('   a b c d e f g h')
+    print('  ----------------')
+    for i in range(8):
+        print(8-i, end=' |')
+        for j in range(8):
+            piece = board.piece_at(chess.square(j, 7-i))
+            if piece:
+                print(' ' + piece.symbol(), end='')
+            else:
+                print(' .', end='')
+        print(' |', 8-i)
+    print('  ----------------')
+    print('   a b c d e f g h')
+
+def get_engines():
+    engines = {
+        'LC0': chess.engine.SimpleEngine.popen_uci(r"PATH_TO_LC0"),
+        'Stockfish': chess.engine.SimpleEngine.popen_uci(r"PATH_TO_STOCKFISH"),
+        'Komodo': chess.engine.SimpleEngine.popen_uci(r"PATH_TO_KOMODO"),
+        'Human': "Human"
+    }
+    engines['LC0'].configure({'WeightsFile': r'PATH_TO_WEIGHTS_FILE'})
+    return engines
+
+# Other functions remain the same
+
+def analyze_position(engine_name, filename, color, play_out=False):
+    engines = get_engines()
+    engine = engines[engine_name]
+
+    pgn_path = os.path.join(os.path.expanduser("~"), "Downloads", filename)
+    if not os.path.exists(pgn_path):
+        print(f"The file '{filename}' was not found in the directory: {pgn_path}")
+        return
+
+    with open(pgn_path, 'r') as f:
+        pgn_or_fen = f.read()
+
+    is_pgn = ' ' in pgn_or_fen
+    if is_pgn:
+        game = chess.pgn.read_game(io.StringIO(pgn_or_fen))
+        board = game.end().board()
+    else:
+        board = chess.Board(fen=pgn_or_fen)
+
+    result = engine.play(board, chess.engine.Limit(time=2.0))
+    best_move = str(result.move)
+
+    if play_out:
+        while not board.is_game_over():
+            result = engine.play(board, chess.engine.Limit(time=2.0))
+            board.push(result.move)
+        game = chess.pgn.Game.from_board(board)
+        return {
+            'best_move': best_move,
+            'pgn': str(game)
+        }
+    else:
+        return {
+            'best_move': best_move,
+            'pgn': None
+        }
+
+# Rest of the code remains the same
+
+if __name__ == "__main__":
+    main()
